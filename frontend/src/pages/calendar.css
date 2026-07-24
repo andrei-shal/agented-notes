@@ -121,6 +121,9 @@
   border: none;
   cursor: pointer;
   transition: opacity 0.15s, transform 0.15s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .calendar-wrapper .fc-event:hover {
@@ -135,6 +138,8 @@
 .calendar-wrapper .fc-event-time {
   font-weight: 400;
   opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Recurring occurrence indicator */

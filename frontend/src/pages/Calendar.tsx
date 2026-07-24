@@ -397,8 +397,8 @@ export default function CalendarPage() {
               />
             </div>
 
-            {/* Start / End */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Start / End — stacked for readability */}
+            <div className="grid grid-cols-1 gap-3">
               <div className="grid gap-1.5">
                 <label htmlFor="event-start" className="text-xs font-medium text-muted-foreground">
                   Start
