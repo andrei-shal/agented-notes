@@ -1,5 +1,5 @@
 import { sql, count, eq, desc } from "drizzle-orm";
-import { db } from "../db/db";
+import { getDb } from "../db/db";
 import {
   notes,
   kanbanTasks,
@@ -50,12 +50,12 @@ export interface ActivityEntry {
  */
 export function getStats(): Stats {
   const totalNotes =
-    db.select({ count: count() }).from(notes).get()?.count ?? 0;
+    getDb().select({ count: count() }).from(notes).get()?.count ?? 0;
 
   const totalTasks =
-    db.select({ count: count() }).from(kanbanTasks).get()?.count ?? 0;
+    getDb().select({ count: count() }).from(kanbanTasks).get()?.count ?? 0;
 
-  const tasksByColumn = db
+  const tasksByColumn = getDb()
     .select({
       column_id: kanbanTasks.columnId,
       column_name: kanbanColumns.name,
@@ -67,9 +67,9 @@ export function getStats(): Stats {
     .all();
 
   const totalEvents =
-    db.select({ count: count() }).from(calendarEvents).get()?.count ?? 0;
+    getDb().select({ count: count() }).from(calendarEvents).get()?.count ?? 0;
 
-  const commentsByStatus = db
+  const commentsByStatus = getDb()
     .select({
       status: comments.status,
       count: count(),
@@ -79,7 +79,7 @@ export function getStats(): Stats {
     .all();
 
   const totalTags =
-    db.select({ count: count() }).from(tags).get()?.count ?? 0;
+    getDb().select({ count: count() }).from(tags).get()?.count ?? 0;
 
   return {
     total_notes: totalNotes,
@@ -95,7 +95,7 @@ export function getStats(): Stats {
  * Return all tags sorted by usage frequency (most used first).
  */
 export function getTags(): TagFrequency[] {
-  return db
+  return getDb()
     .select({
       name: tags.name,
       count: count(notesToTags.noteId),
@@ -114,7 +114,7 @@ export function getTags(): TagFrequency[] {
  */
 export function getActivity(): ActivityEntry[] {
   // Notes created per day (last 30 days)
-  const notesActivity = db
+  const notesActivity = getDb()
     .select({
       date: sql<string>`substr(${notes.createdAt}, 1, 10)`,
       created: count(),
@@ -126,7 +126,7 @@ export function getActivity(): ActivityEntry[] {
     .all();
 
   // Tasks created per day (last 30 days)
-  const tasksActivity = db
+  const tasksActivity = getDb()
     .select({
       date: sql<string>`substr(${kanbanTasks.createdAt}, 1, 10)`,
       created: count(),

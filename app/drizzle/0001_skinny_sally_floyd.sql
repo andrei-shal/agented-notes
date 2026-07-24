@@ -1,0 +1,1 @@
+CREATE INDEX `comments_entity_idx` ON `comments` (`entity_type`,`entity_id`);

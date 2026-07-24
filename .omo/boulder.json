@@ -1,13 +1,14 @@
 {
   "schema_version": 2,
-  "active_work_id": "agented-notes",
+  "active_work_id": null,
   "works": {
-    "agented-notes": {
-      "work_id": "agented-notes",
-      "active_plan": ".omo/plans/agented-notes.md",
-      "plan_name": "agented-notes",
-      "session_ids": ["codex:ses_active"],
-      "status": "completed"
+    "fix-review-issues": {
+      "work_id": "fix-review-issues",
+      "active_plan": ".omo/plans/fix-review-issues.md",
+      "plan_name": "fix-review-issues",
+      "session_ids": [],
+      "status": "completed",
+      "worktree_path": null
     }
   }
 }

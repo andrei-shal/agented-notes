@@ -76,28 +76,28 @@ describe("MCP Comments Tools", () => {
     dbModule = await import("../../db/db");
     schema = await import("../../db/schema");
 
-    const { db } = dbModule;
+    const { getDb } = dbModule;
     const { notes, kanbanBoards, kanbanColumns, kanbanTasks } = schema;
 
     // Create a note
     noteId = crypto.randomUUID();
-    db.insert(notes)
+    getDb().insert(notes)
       .values({ id: noteId, title: "MCP Test Note", content: "Note body" })
       .run();
 
     // Create a board + column + task
     const boardId = crypto.randomUUID();
-    db.insert(kanbanBoards)
+    getDb().insert(kanbanBoards)
       .values({ id: boardId, name: "MCP Test Board" })
       .run();
 
     const columnId = crypto.randomUUID();
-    db.insert(kanbanColumns)
+    getDb().insert(kanbanColumns)
       .values({ id: columnId, boardId, name: "To Do", position: 0 })
       .run();
 
     taskId = crypto.randomUUID();
-    db.insert(kanbanTasks)
+    getDb().insert(kanbanTasks)
       .values({ id: taskId, columnId, title: "MCP Test Task", position: 0 })
       .run();
   });

@@ -84,7 +84,7 @@ if (config.mcpMode === "http") {
   const transport = createHttpTransport();
   await server.connect(transport);
 
-  app.all("/mcp", apiKeyMiddleware(config.mcpApiKey), async (c) =>
+  app.all("/mcp", apiKeyMiddleware(config.mcpApiKey!), async (c) =>
     transport.handleRequest(c.req.raw),
   );
 

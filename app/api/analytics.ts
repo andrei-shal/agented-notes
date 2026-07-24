@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { sql, count, eq, desc } from "drizzle-orm";
-import { db } from "../db/db";
+import { getDb } from "../db/db";
 import {
   notes,
   kanbanTasks,
@@ -20,11 +20,11 @@ export const analyticsRouter = new Hono();
 // ── GET /api/analytics/stats ────────────────────────────────────────────
 
 analyticsRouter.get("/stats", async (c) => {
-  const totalNotes = db.select({ count: count() }).from(notes).get()?.count ?? 0;
+  const totalNotes = getDb().select({ count: count() }).from(notes).get()?.count ?? 0;
 
-  const totalTasks = db.select({ count: count() }).from(kanbanTasks).get()?.count ?? 0;
+  const totalTasks = getDb().select({ count: count() }).from(kanbanTasks).get()?.count ?? 0;
 
-  const tasksByColumn = db
+  const tasksByColumn = getDb()
     .select({
       column_id: kanbanTasks.columnId,
       column_name: kanbanColumns.name,
@@ -35,9 +35,9 @@ analyticsRouter.get("/stats", async (c) => {
     .groupBy(kanbanTasks.columnId)
     .all();
 
-  const totalEvents = db.select({ count: count() }).from(calendarEvents).get()?.count ?? 0;
+  const totalEvents = getDb().select({ count: count() }).from(calendarEvents).get()?.count ?? 0;
 
-  const commentsByStatus = db
+  const commentsByStatus = getDb()
     .select({
       status: comments.status,
       count: count(),
@@ -46,7 +46,7 @@ analyticsRouter.get("/stats", async (c) => {
     .groupBy(comments.status)
     .all();
 
-  const totalTags = db.select({ count: count() }).from(tags).get()?.count ?? 0;
+  const totalTags = getDb().select({ count: count() }).from(tags).get()?.count ?? 0;
 
   return c.json({
     total_notes: totalNotes,
@@ -61,7 +61,7 @@ analyticsRouter.get("/stats", async (c) => {
 // ── GET /api/analytics/tags ─────────────────────────────────────────────
 
 analyticsRouter.get("/tags", async (c) => {
-  const tagFrequencies = db
+  const tagFrequencies = getDb()
     .select({
       name: tags.name,
       count: count(notesToTags.noteId),
@@ -79,7 +79,7 @@ analyticsRouter.get("/tags", async (c) => {
 
 analyticsRouter.get("/activity", async (c) => {
   // Notes created per day (last 30 days)
-  const notesActivity = db
+  const notesActivity = getDb()
     .select({
       date: sql<string>`substr(${notes.createdAt}, 1, 10)`,
       created: count(),
@@ -93,7 +93,7 @@ analyticsRouter.get("/activity", async (c) => {
     .all();
 
   // Tasks created per day (last 30 days)
-  const tasksActivity = db
+  const tasksActivity = getDb()
     .select({
       date: sql<string>`substr(${kanbanTasks.createdAt}, 1, 10)`,
       created: count(),

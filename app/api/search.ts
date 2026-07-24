@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { db } from "../db/db";
+import { getDb } from "../db/db";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -45,7 +45,7 @@ searchRouter.get("/", async (c) => {
   }
 
   const query = sanitizeFts5(q.trim());
-  const sqlite: typeof db.$client = db.$client;
+  const sqlite = getDb().$client;
 
   const results: Array<Record<string, unknown>> = [];
 

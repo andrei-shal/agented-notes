@@ -139,6 +139,7 @@ describe("loadConfig", () => {
     expect(config.mcpApiKey).toBe("test-mcp-api-key");
     expect(config.databasePath).toBe("./data/notes.db");
     expect(config.mcpMode).toBe("none");
+    expect(config.mcpMode).toBe("none");
     expect(config.mcpPort).toBe(3100);
   });
 
@@ -241,10 +242,16 @@ describe("loadConfig", () => {
     expect(() => loadConfig([])).toThrow("telegramBotToken");
   });
 
-  it("throws when MCP_API_KEY is missing", () => {
+  it("throws when MCP_API_KEY is missing and MCP HTTP mode is enabled", () => {
     unsetAllEnv();
     setEnv({ JWT_SECRET: "test-jwt-secret-16ch", TELEGRAM_BOT_TOKEN: "tok" });
-    expect(() => loadConfig([])).toThrow("mcpApiKey");
+    expect(() => loadConfig(["--mcp"])).toThrow("MCP_API_KEY");
+  });
+
+  it("does not throw when MCP_API_KEY is missing and MCP is disabled", () => {
+    unsetAllEnv();
+    setEnv({ JWT_SECRET: "test-jwt-secret-16ch", TELEGRAM_BOT_TOKEN: "tok" });
+    expect(() => loadConfig([])).not.toThrow();
   });
 
   it("throws when port is below 1024", () => {
@@ -268,7 +275,7 @@ describe("loadConfig", () => {
   it("throws with descriptive error messages containing field name", () => {
     unsetAllEnv();
     setEnv({ JWT_SECRET: "x".repeat(16) }); // valid
-    // Missing TELEGRAM_BOT_TOKEN and MCP_API_KEY
+    // Missing TELEGRAM_BOT_TOKEN (MCP_API_KEY is now optional)
     try {
       loadConfig([]);
       // Should not reach here
@@ -276,7 +283,7 @@ describe("loadConfig", () => {
     } catch (e) {
       const msg = (e as Error).message;
       expect(msg).toContain("telegramBotToken");
-      expect(msg).toContain("mcpApiKey");
+      expect(msg).not.toContain("mcpApiKey"); // no longer required by default
     }
   });
 });

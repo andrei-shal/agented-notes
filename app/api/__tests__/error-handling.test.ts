@@ -241,8 +241,8 @@ describe("Rate limiting", () => {
 });
 
 describe("CORS middleware", () => {
-  test("in dev mode allows localhost:5173", async () => {
-    process.env["NODE_ENV"] = "development";
+  test("default allow-origin is * (no ALLOWED_ORIGIN env set)", async () => {
+    delete process.env["ALLOWED_ORIGIN"];
 
     const { createCorsMiddleware } = await import("../middleware/cors");
     const app = new Hono();
@@ -255,14 +255,31 @@ describe("CORS middleware", () => {
       }),
     );
 
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(
-      "http://localhost:5173",
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    // No credentials when origin is * (must match specific origin for credentials)
+    expect(res.headers.get("Access-Control-Allow-Credentials")).toBeNull();
+  });
+
+  test("with ALLOWED_ORIGIN set, returns specific origin with credentials", async () => {
+    process.env["ALLOWED_ORIGIN"] = "http://localhost:5173";
+
+    const { createCorsMiddleware } = await import("../middleware/cors");
+    const app = new Hono();
+    app.use("*", createCorsMiddleware());
+    app.get("/api/health", (c) => c.json({ ok: true }));
+
+    const res = await app.fetch(
+      new Request("http://localhost/api/health", {
+        headers: { Origin: "http://localhost:5173" },
+      }),
     );
+
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("http://localhost:5173");
     expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
   });
 
-  test("in dev mode blocks other origins", async () => {
-    process.env["NODE_ENV"] = "development";
+  test("with ALLOWED_ORIGIN set, blocks other origins", async () => {
+    process.env["ALLOWED_ORIGIN"] = "http://localhost:5173";
 
     const { createCorsMiddleware } = await import("../middleware/cors");
     const app = new Hono();
@@ -281,8 +298,9 @@ describe("CORS middleware", () => {
     );
   });
 
-  test("in production mode is a no-op", async () => {
+  test("in production mode sets CORS headers with default allow-origin *", async () => {
     process.env["NODE_ENV"] = "production";
+    delete process.env["ALLOWED_ORIGIN"];
 
     const { createCorsMiddleware } = await import("../middleware/cors");
     const app = new Hono();
@@ -295,7 +313,7 @@ describe("CORS middleware", () => {
       }),
     );
 
-    // No CORS headers should be present
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    // By default, ALLOWED_ORIGIN is * in production
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
   });
 });

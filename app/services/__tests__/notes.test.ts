@@ -206,7 +206,7 @@ describe("NotesService", () => {
     const note = svc.createNote("Comment Note", "test");
     const commentId = crypto.randomUUID();
 
-    dbMod.db.insert(schema.comments)
+    dbMod.getDb().insert(schema.comments)
       .values({
         id: commentId,
         entityType: "note",
@@ -217,7 +217,7 @@ describe("NotesService", () => {
 
     svc.deleteNote(note.id);
 
-    const remaining = dbMod.db
+    const remaining = dbMod.getDb()
       .select()
       .from(schema.comments)
       .where(eq(schema.comments.id, commentId))
@@ -231,7 +231,7 @@ describe("NotesService", () => {
 
     svc.deleteNote(note.id);
 
-    const tagRows = dbMod.db
+    const tagRows = dbMod.getDb()
       .select()
       .from(schema.tags)
       .where(eq(schema.tags.name, "lonelytag"))

@@ -6,7 +6,7 @@ import { Database } from "bun:sqlite";
 
 // ═════════════════════════════════════════════════════════════════════════
 // IMPORTANT: All application module imports below are DYNAMIC (inside
-// beforeAll).  Static imports of application code would cause db.ts etc.
+// beforeAll).  Static imports of application code would cause getDb().ts etc.
 // to load before env vars are set.
 // ═════════════════════════════════════════════════════════════════════════
 
@@ -70,29 +70,29 @@ describe("CommentsService", () => {
     dbModule = await import("../../db/db");
     schema = await import("../../db/schema");
 
-    const { db } = dbModule;
+    const { getDb } = dbModule;
     const { notes, kanbanBoards, kanbanColumns, kanbanTasks, calendarEvents } =
       schema;
 
     // Create a note
     noteId = crypto.randomUUID();
-    db.insert(notes)
+    getDb().insert(notes)
       .values({ id: noteId, title: "Test Note", content: "Note body" })
       .run();
 
     // Create a board + column + task
     const boardId = crypto.randomUUID();
-    db.insert(kanbanBoards)
+    getDb().insert(kanbanBoards)
       .values({ id: boardId, name: "Test Board" })
       .run();
 
     const columnId = crypto.randomUUID();
-    db.insert(kanbanColumns)
+    getDb().insert(kanbanColumns)
       .values({ id: columnId, boardId, name: "To Do", position: 0 })
       .run();
 
     taskId = crypto.randomUUID();
-    db.insert(kanbanTasks)
+    getDb().insert(kanbanTasks)
       .values({
         id: taskId,
         columnId,
@@ -103,7 +103,7 @@ describe("CommentsService", () => {
 
     // Create an event
     eventId = crypto.randomUUID();
-    db.insert(calendarEvents)
+    getDb().insert(calendarEvents)
       .values({
         id: eventId,
         title: "Test Event",
@@ -255,14 +255,14 @@ describe("CommentsService", () => {
   });
 
   test("getPendingComments excludes expired comments", () => {
-    const { db } = dbModule;
+    const { getDb } = dbModule;
     const { comments: commentsTable } = schema;
 
     // Manually insert a comment with an already-expired expires_at
     const expiredId = crypto.randomUUID();
     const past = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    db.insert(commentsTable)
+    getDb().insert(commentsTable)
       .values({
         id: expiredId,
         entityType: "note",
@@ -283,11 +283,11 @@ describe("CommentsService", () => {
     svc.markProcessed(c.id);
 
     // Manually create another that is expired
-    const { db } = dbModule;
+    const { getDb } = dbModule;
     const { comments: commentsTable } = schema;
 
     const expiredId = crypto.randomUUID();
-    db.insert(commentsTable)
+    getDb().insert(commentsTable)
       .values({
         id: expiredId,
         entityType: "note",

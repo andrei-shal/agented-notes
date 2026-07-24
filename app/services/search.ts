@@ -1,4 +1,4 @@
-import { db } from "../db/db";
+import { getDb } from "../db/db";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -63,7 +63,7 @@ export function searchQuery(query: string, type: SearchType = "all"): SearchResu
   const sanitized = sanitizeFts5(query);
   if (!sanitized) return [];
 
-  const sqlite: typeof db.$client = db.$client;
+  const sqlite = getDb().$client;
   const results: SearchResult[] = [];
 
   // ── Search notes ────────────────────────────────────────────────────

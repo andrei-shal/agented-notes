@@ -137,7 +137,7 @@ describe("MCP Analytics Tools", () => {
       const baseline = analyticsSvc.getStats();
 
       // Create 2 notes
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.notes)
         .values({
           id: crypto.randomUUID(),
@@ -145,7 +145,7 @@ describe("MCP Analytics Tools", () => {
           content: "Content 1",
         })
         .run();
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.notes)
         .values({
           id: crypto.randomUUID(),
@@ -156,25 +156,25 @@ describe("MCP Analytics Tools", () => {
 
       // Create board + 2 columns
       const boardId = crypto.randomUUID();
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.kanbanBoards)
         .values({ id: boardId, name: "Board" })
         .run();
 
       const col1Id = crypto.randomUUID();
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.kanbanColumns)
         .values({ id: col1Id, boardId, name: "To Do", position: 0 })
         .run();
 
       const col2Id = crypto.randomUUID();
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.kanbanColumns)
         .values({ id: col2Id, boardId, name: "Done", position: 1 })
         .run();
 
       // Create 3 tasks: 2 in col1, 1 in col2
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.kanbanTasks)
         .values({
           id: crypto.randomUUID(),
@@ -182,7 +182,7 @@ describe("MCP Analytics Tools", () => {
           title: "Task 1",
         })
         .run();
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.kanbanTasks)
         .values({
           id: crypto.randomUUID(),
@@ -190,7 +190,7 @@ describe("MCP Analytics Tools", () => {
           title: "Task 2",
         })
         .run();
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.kanbanTasks)
         .values({
           id: crypto.randomUUID(),
@@ -200,7 +200,7 @@ describe("MCP Analytics Tools", () => {
         .run();
 
       // Create 1 event
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.calendarEvents)
         .values({
           id: crypto.randomUUID(),
@@ -210,7 +210,7 @@ describe("MCP Analytics Tools", () => {
         .run();
 
       // Create 2 comments: 1 pending, 1 processed
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.comments)
         .values({
           id: crypto.randomUUID(),
@@ -220,7 +220,7 @@ describe("MCP Analytics Tools", () => {
           status: "pending",
         })
         .run();
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.comments)
         .values({
           id: crypto.randomUUID(),
@@ -232,11 +232,11 @@ describe("MCP Analytics Tools", () => {
         .run();
 
       // Create 2 tags
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.tags)
         .values({ id: crypto.randomUUID(), name: "tag-a" })
         .run();
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.tags)
         .values({ id: crypto.randomUUID(), name: "tag-b" })
         .run();
@@ -280,18 +280,18 @@ describe("MCP Analytics Tools", () => {
 
       // Create a unique tag
       const tagId = crypto.randomUUID();
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.tags)
         .values({ id: tagId, name: tagName })
         .run();
 
       // Create a note linked to this tag
       const noteId = crypto.randomUUID();
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.notes)
         .values({ id: noteId, title: "Tagged Note", content: "Tags" })
         .run();
-      dbModule.db
+      dbModule.getDb()
         .insert(schema.notesToTags)
         .values({ noteId, tagId })
         .run();

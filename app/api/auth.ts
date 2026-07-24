@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { loadConfig } from "../config";
-import { db } from "../db/db";
+import { getDb } from "../db/db";
 import { users, refreshTokens } from "../db/schema";
 import { validateTelegramInitData } from "../lib/telegram";
 import {
@@ -78,21 +78,21 @@ authRouter.post("/telegram", async (c) => {
   // ── Find or create user ──────────────────────────────────────────
   const telegramId = parsed.user.id;
 
-  let user = db
+  let user = getDb()
     .select()
     .from(users)
     .where(eq(users.telegramId, telegramId))
     .get();
 
   if (!user) {
-    db.insert(users)
+    getDb().insert(users)
       .values({
         telegramId,
         username: parsed.user.username ?? null,
       })
       .run();
 
-    user = db
+    user = getDb()
       .select()
       .from(users)
       .where(eq(users.telegramId, telegramId))
@@ -133,7 +133,7 @@ authRouter.post("/refresh", async (c) => {
   // Hash token and check blacklist
   const tokenHash = createHash("sha256").update(refreshToken).digest("hex");
 
-  const blacklisted = db
+  const blacklisted = getDb()
     .select()
     .from(refreshTokens)
     .where(eq(refreshTokens.tokenHash, tokenHash))
@@ -148,7 +148,7 @@ authRouter.post("/refresh", async (c) => {
     ? new Date(payload.exp * 1000).toISOString()
     : new Date(Date.now() + 30 * 86400 * 1000).toISOString();
 
-  db.insert(refreshTokens)
+  getDb().insert(refreshTokens)
     .values({ tokenHash, userId: payload.sub, expiresAt })
     .run();
 
@@ -193,7 +193,7 @@ authRouter.post("/logout", async (c) => {
     ? new Date(expSeconds * 1000).toISOString()
     : new Date(Date.now() + 30 * 86400 * 1000).toISOString();
 
-  db.insert(refreshTokens)
+  getDb().insert(refreshTokens)
     .values({ tokenHash, userId: userId ?? null, expiresAt })
     .run();
 

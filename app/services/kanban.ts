@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { db } from "../db/db";
+import { getDb } from "../db/db";
 import { kanbanBoards, kanbanColumns, kanbanTasks } from "../db/schema";
 import { syncTaskFts } from "../db/fts5";
 
@@ -116,7 +116,7 @@ export function createBoard(input: CreateBoardInput): BoardWithColumns {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  db.insert(kanbanBoards)
+  getDb().insert(kanbanBoards)
     .values({ id, name: input.name, description: input.description ?? null, createdAt: now })
     .run();
 
@@ -128,7 +128,7 @@ export function createBoard(input: CreateBoardInput): BoardWithColumns {
   ];
 
   for (const col of defaultColumns) {
-    db.insert(kanbanColumns).values(col).run();
+    getDb().insert(kanbanColumns).values(col).run();
   }
 
   return {
@@ -141,7 +141,7 @@ export function createBoard(input: CreateBoardInput): BoardWithColumns {
 }
 
 export function getBoard(id: string): BoardWithColumns | null {
-  const board = db
+  const board = getDb()
     .select()
     .from(kanbanBoards)
     .where(eq(kanbanBoards.id, id))
@@ -149,7 +149,7 @@ export function getBoard(id: string): BoardWithColumns | null {
 
   if (!board) return null;
 
-  const columns = db
+  const columns = getDb()
     .select()
     .from(kanbanColumns)
     .where(eq(kanbanColumns.boardId, id))
@@ -159,7 +159,7 @@ export function getBoard(id: string): BoardWithColumns | null {
   const columnIds = columns.map((c) => c.id);
   const rawTasks =
     columnIds.length > 0
-      ? db
+      ? getDb()
           .select()
           .from(kanbanTasks)
           .where(inArray(kanbanTasks.columnId, columnIds))
@@ -192,13 +192,13 @@ export function getBoard(id: string): BoardWithColumns | null {
 }
 
 export function listBoards(): BoardListItem[] {
-  const boards = db.select().from(kanbanBoards).orderBy(asc(kanbanBoards.createdAt)).all();
+  const boards = getDb().select().from(kanbanBoards).orderBy(asc(kanbanBoards.createdAt)).all();
 
   if (boards.length === 0) return [];
 
   const boardIds = boards.map((b) => b.id);
 
-  const columns = db
+  const columns = getDb()
     .select()
     .from(kanbanColumns)
     .where(inArray(kanbanColumns.boardId, boardIds))
@@ -209,7 +209,7 @@ export function listBoards(): BoardListItem[] {
 
   const taskCounts: Array<{ columnId: string; count: number }> =
     columnIds.length > 0
-      ? db
+      ? getDb()
           .select({
             columnId: kanbanTasks.columnId,
             count: sql<number>`COUNT(*)`,
@@ -251,7 +251,7 @@ export function listBoards(): BoardListItem[] {
 }
 
 export function updateBoard(id: string, input: UpdateBoardInput): BoardWithColumns | null {
-  const existing = db
+  const existing = getDb()
     .select()
     .from(kanbanBoards)
     .where(eq(kanbanBoards.id, id))
@@ -259,7 +259,7 @@ export function updateBoard(id: string, input: UpdateBoardInput): BoardWithColum
 
   if (!existing) return null;
 
-  db.update(kanbanBoards)
+  getDb().update(kanbanBoards)
     .set({
       name: input.name ?? existing.name,
       description: input.description !== undefined ? input.description : existing.description,
@@ -271,7 +271,7 @@ export function updateBoard(id: string, input: UpdateBoardInput): BoardWithColum
 }
 
 export function deleteBoard(id: string): boolean {
-  const existing = db
+  const existing = getDb()
     .select()
     .from(kanbanBoards)
     .where(eq(kanbanBoards.id, id))
@@ -280,7 +280,7 @@ export function deleteBoard(id: string): boolean {
   if (!existing) return false;
 
   // Cascade: delete all tasks in board's columns, then columns, then board
-  const columns = db
+  const columns = getDb()
     .select()
     .from(kanbanColumns)
     .where(eq(kanbanColumns.boardId, id))
@@ -289,15 +289,15 @@ export function deleteBoard(id: string): boolean {
   const columnIds = columns.map((c) => c.id);
 
   if (columnIds.length > 0) {
-    db.delete(kanbanTasks)
+    getDb().delete(kanbanTasks)
       .where(inArray(kanbanTasks.columnId, columnIds))
       .run();
-    db.delete(kanbanColumns)
+    getDb().delete(kanbanColumns)
       .where(inArray(kanbanColumns.boardId, [id]))
       .run();
   }
 
-  db.delete(kanbanBoards).where(eq(kanbanBoards.id, id)).run();
+  getDb().delete(kanbanBoards).where(eq(kanbanBoards.id, id)).run();
 
   return true;
 }
@@ -307,7 +307,7 @@ export function deleteBoard(id: string): boolean {
 // ---------------------------------------------------------------------------
 
 export function createColumn(input: CreateColumnInput) {
-  const board = db
+  const board = getDb()
     .select()
     .from(kanbanBoards)
     .where(eq(kanbanBoards.id, input.boardId))
@@ -315,7 +315,7 @@ export function createColumn(input: CreateColumnInput) {
 
   if (!board) return null;
 
-  const maxPos = db
+  const maxPos = getDb()
     .select({ max: sql<number>`COALESCE(MAX(${kanbanColumns.position}), -1)` })
     .from(kanbanColumns)
     .where(eq(kanbanColumns.boardId, input.boardId))
@@ -325,7 +325,7 @@ export function createColumn(input: CreateColumnInput) {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  db.insert(kanbanColumns)
+  getDb().insert(kanbanColumns)
     .values({
       id,
       boardId: input.boardId,
@@ -347,7 +347,7 @@ export function createColumn(input: CreateColumnInput) {
 }
 
 export function getColumn(id: string) {
-  const col = db
+  const col = getDb()
     .select()
     .from(kanbanColumns)
     .where(eq(kanbanColumns.id, id))
@@ -362,7 +362,7 @@ export function getColumn(id: string) {
 }
 
 export function listColumns(boardId: string) {
-  const columns = db
+  const columns = getDb()
     .select()
     .from(kanbanColumns)
     .where(eq(kanbanColumns.boardId, boardId))
@@ -373,7 +373,7 @@ export function listColumns(boardId: string) {
 }
 
 export function updateColumn(id: string, input: UpdateColumnInput) {
-  const existing = db
+  const existing = getDb()
     .select()
     .from(kanbanColumns)
     .where(eq(kanbanColumns.id, id))
@@ -381,7 +381,7 @@ export function updateColumn(id: string, input: UpdateColumnInput) {
 
   if (!existing) return null;
 
-  db.update(kanbanColumns)
+  getDb().update(kanbanColumns)
     .set({
       name: input.name ?? existing.name,
       color: input.color !== undefined ? input.color : existing.color,
@@ -393,7 +393,7 @@ export function updateColumn(id: string, input: UpdateColumnInput) {
 }
 
 export function deleteColumn(id: string): boolean {
-  const existing = db
+  const existing = getDb()
     .select()
     .from(kanbanColumns)
     .where(eq(kanbanColumns.id, id))
@@ -405,13 +405,13 @@ export function deleteColumn(id: string): boolean {
   const deletedPosition = existing.position;
 
   // Cascade: delete all tasks in this column
-  db.delete(kanbanTasks).where(eq(kanbanTasks.columnId, id)).run();
+  getDb().delete(kanbanTasks).where(eq(kanbanTasks.columnId, id)).run();
 
   // Delete the column
-  db.delete(kanbanColumns).where(eq(kanbanColumns.id, id)).run();
+  getDb().delete(kanbanColumns).where(eq(kanbanColumns.id, id)).run();
 
   // Reorder: shift positions of remaining columns after the deleted one
-  db.update(kanbanColumns)
+  getDb().update(kanbanColumns)
     .set({ position: sql`${kanbanColumns.position} - 1` })
     .where(and(eq(kanbanColumns.boardId, boardId), sql`${kanbanColumns.position} > ${deletedPosition}`))
     .run();
@@ -424,7 +424,7 @@ export function deleteColumn(id: string): boolean {
 // ---------------------------------------------------------------------------
 
 export function createTask(input: CreateTaskInput) {
-  const column = db
+  const column = getDb()
     .select()
     .from(kanbanColumns)
     .where(eq(kanbanColumns.id, input.columnId))
@@ -432,7 +432,7 @@ export function createTask(input: CreateTaskInput) {
 
   if (!column) return null;
 
-  const maxPos = db
+  const maxPos = getDb()
     .select({ max: sql<number>`COALESCE(MAX(${kanbanTasks.position}), -1)` })
     .from(kanbanTasks)
     .where(eq(kanbanTasks.columnId, input.columnId))
@@ -442,7 +442,7 @@ export function createTask(input: CreateTaskInput) {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  db.insert(kanbanTasks)
+  getDb().insert(kanbanTasks)
     .values({
       id,
       columnId: input.columnId,
@@ -472,7 +472,7 @@ export function createTask(input: CreateTaskInput) {
 }
 
 export function getTask(id: string) {
-  const task = db
+  const task = getDb()
     .select()
     .from(kanbanTasks)
     .where(eq(kanbanTasks.id, id))
@@ -487,7 +487,7 @@ export function getTask(id: string) {
 }
 
 export function listTasks(columnId: string) {
-  const tasks = db
+  const tasks = getDb()
     .select()
     .from(kanbanTasks)
     .where(eq(kanbanTasks.columnId, columnId))
@@ -501,7 +501,7 @@ export function listTasks(columnId: string) {
 }
 
 export function updateTask(id: string, input: UpdateTaskInput) {
-  const existing = db
+  const existing = getDb()
     .select()
     .from(kanbanTasks)
     .where(eq(kanbanTasks.id, id))
@@ -518,7 +518,7 @@ export function updateTask(id: string, input: UpdateTaskInput) {
   if (input.dueDate !== undefined) updates["dueDate"] = input.dueDate;
   if (input.tags !== undefined) updates["tags"] = JSON.stringify(input.tags);
 
-  db.update(kanbanTasks)
+  getDb().update(kanbanTasks)
     .set(updates)
     .where(eq(kanbanTasks.id, id))
     .run();
@@ -529,7 +529,7 @@ export function updateTask(id: string, input: UpdateTaskInput) {
 }
 
 export function deleteTask(id: string): boolean {
-  const existing = db
+  const existing = getDb()
     .select({ rowid: sql<number>`rowid`, columnId: kanbanTasks.columnId, position: kanbanTasks.position })
     .from(kanbanTasks)
     .where(eq(kanbanTasks.id, id))
@@ -539,12 +539,12 @@ export function deleteTask(id: string): boolean {
 
   const { rowid, columnId, position: deletedPosition } = existing;
 
-  db.delete(kanbanTasks).where(eq(kanbanTasks.id, id)).run();
+  getDb().delete(kanbanTasks).where(eq(kanbanTasks.id, id)).run();
 
   syncTaskFts(id, "delete", rowid);
 
   // Reorder: shift positions of remaining tasks in the same column
-  db.update(kanbanTasks)
+  getDb().update(kanbanTasks)
     .set({ position: sql`${kanbanTasks.position} - 1` })
     .where(and(eq(kanbanTasks.columnId, columnId), sql`${kanbanTasks.position} > ${deletedPosition}`))
     .run();
@@ -557,7 +557,7 @@ export function deleteTask(id: string): boolean {
 // ---------------------------------------------------------------------------
 
 export function moveTask(taskId: string, targetColumnId: string, targetPosition?: number) {
-  const task = db
+  const task = getDb()
     .select()
     .from(kanbanTasks)
     .where(eq(kanbanTasks.id, taskId))
@@ -565,7 +565,7 @@ export function moveTask(taskId: string, targetColumnId: string, targetPosition?
 
   if (!task) return null;
 
-  const targetColumn = db
+  const targetColumn = getDb()
     .select()
     .from(kanbanColumns)
     .where(eq(kanbanColumns.id, targetColumnId))
@@ -578,7 +578,7 @@ export function moveTask(taskId: string, targetColumnId: string, targetPosition?
 
   if (sourceColumnId === targetColumnId) {
     // Reordering within the same column
-    const maxPos = db
+    const maxPos = getDb()
       .select({ max: sql<number>`COALESCE(MAX(${kanbanTasks.position}), 0)` })
       .from(kanbanTasks)
       .where(eq(kanbanTasks.columnId, sourceColumnId))
@@ -594,7 +594,7 @@ export function moveTask(taskId: string, targetColumnId: string, targetPosition?
 
     if (effectiveTarget > sourcePosition) {
       // Shift items between source+1 and effectiveTarget down by 1
-      db.update(kanbanTasks)
+      getDb().update(kanbanTasks)
         .set({ position: sql`${kanbanTasks.position} - 1` })
         .where(
           and(
@@ -606,7 +606,7 @@ export function moveTask(taskId: string, targetColumnId: string, targetPosition?
         .run();
     } else {
       // Shift items between effectiveTarget and source-1 up by 1
-      db.update(kanbanTasks)
+      getDb().update(kanbanTasks)
         .set({ position: sql`${kanbanTasks.position} + 1` })
         .where(
           and(
@@ -618,7 +618,7 @@ export function moveTask(taskId: string, targetColumnId: string, targetPosition?
         .run();
     }
 
-    db.update(kanbanTasks)
+    getDb().update(kanbanTasks)
       .set({ position: effectiveTarget })
       .where(eq(kanbanTasks.id, taskId))
       .run();
@@ -626,7 +626,7 @@ export function moveTask(taskId: string, targetColumnId: string, targetPosition?
     // Moving to a different column
 
     // 1. Close the gap in the source column
-    db.update(kanbanTasks)
+    getDb().update(kanbanTasks)
       .set({ position: sql`${kanbanTasks.position} - 1` })
       .where(
         and(
@@ -637,7 +637,7 @@ export function moveTask(taskId: string, targetColumnId: string, targetPosition?
       .run();
 
     // 2. Determine target position
-    const maxPos = db
+    const maxPos = getDb()
       .select({ max: sql<number>`COALESCE(MAX(${kanbanTasks.position}), -1)` })
       .from(kanbanTasks)
       .where(eq(kanbanTasks.columnId, targetColumnId))
@@ -648,7 +648,7 @@ export function moveTask(taskId: string, targetColumnId: string, targetPosition?
       : maxPos!.max + 1;
 
     // 3. Make room in the target column
-    db.update(kanbanTasks)
+    getDb().update(kanbanTasks)
       .set({ position: sql`${kanbanTasks.position} + 1` })
       .where(
         and(
@@ -659,7 +659,7 @@ export function moveTask(taskId: string, targetColumnId: string, targetPosition?
       .run();
 
     // 4. Move the task
-    db.update(kanbanTasks)
+    getDb().update(kanbanTasks)
       .set({
         columnId: targetColumnId,
         position: effectiveTarget,

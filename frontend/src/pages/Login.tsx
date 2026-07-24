@@ -125,6 +125,12 @@ export default function Login() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, botUsername]);
 
+  const handleInitDataSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!initDataInput.trim()) return;
+    handleTelegramAuth(initDataInput.trim());
+  };
+
   // -- Render --
 
   if (mode === "checking") {
@@ -227,10 +233,4 @@ export default function Login() {
       </Card>
     </div>
   );
-
-  function handleInitDataSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!initDataInput.trim()) return;
-    handleTelegramAuth(initDataInput.trim());
-  }
 }

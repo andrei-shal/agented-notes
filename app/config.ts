@@ -20,7 +20,8 @@ const configSchema = z.object({
     .min(1, "\"telegramBotToken\" is required but was not provided"),
   mcpApiKey: z
     .string()
-    .min(1, "\"mcpApiKey\" is required but was not provided"),
+    .min(1, "\"mcpApiKey\" must be at least 1 character")
+    .optional(),
   databasePath: z
     .string()
     .default("./data/notes.db"),
@@ -156,6 +157,13 @@ export function loadConfig(argv?: string[]): Config {
       (e) => `${e.path.join(".")}: ${e.message}`,
     );
     throw new Error(`Config validation failed:\n${messages.join("\n")}`);
+  }
+
+  // MCP_API_KEY is required when HTTP mode is enabled
+  if (result.data.mcpMode === "http" && !result.data.mcpApiKey) {
+    throw new Error(
+      "MCP_API_KEY is required when MCP HTTP mode is enabled (use --mcp flag)",
+    );
   }
 
   return result.data;

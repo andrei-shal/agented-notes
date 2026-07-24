@@ -1,4 +1,4 @@
-import { db } from "../db/db";
+import { getDb } from "../db/db";
 import { calendarEvents } from "../db/schema";
 import { eq, and, gte, lte, isNull, sql } from "drizzle-orm";
 import { RRule } from "rrule";
@@ -72,7 +72,7 @@ export function createEvent(data: CreateEventData): Event {
   const finalEndDate =
     data.endDate ?? (data.rrule ? undefined : data.startDate);
 
-  return db
+  return getDb()
     .insert(calendarEvents)
     .values({
       title: data.title,
@@ -90,7 +90,7 @@ export function createEvent(data: CreateEventData): Event {
 
 /** Get a single event by ID. Returns `undefined` when not found. */
 export function getEvent(id: string): Event | undefined {
-  const result = db
+  const result = getDb()
     .select()
     .from(calendarEvents)
     .where(eq(calendarEvents.id, id))
@@ -113,7 +113,7 @@ export function listEvents(from: string, to: string): (Event | EventOccurrence)[
   const toDate = new Date(to);
 
   // 1. Non-recurring events in range
-  const nonRecurring = db
+  const nonRecurring = getDb()
     .select()
     .from(calendarEvents)
     .where(
@@ -128,7 +128,7 @@ export function listEvents(from: string, to: string): (Event | EventOccurrence)[
     .all();
 
   // 2. All recurring events
-  const recurring = db
+  const recurring = getDb()
     .select()
     .from(calendarEvents)
     .where(sql`${calendarEvents.rrule} IS NOT NULL`)
@@ -198,7 +198,7 @@ export function updateEvent(id: string, data: UpdateEventData): Event | undefine
     return getEvent(id);
   }
 
-  const result = db
+  const result = getDb()
     .update(calendarEvents)
     .set(values)
     .where(eq(calendarEvents.id, id))
@@ -213,7 +213,7 @@ export function updateEvent(id: string, data: UpdateEventData): Event | undefine
  * Returns the deleted event, or `undefined` if it was not found.
  */
 export function deleteEvent(id: string): Event | undefined {
-  const result = db
+  const result = getDb()
     .delete(calendarEvents)
     .where(eq(calendarEvents.id, id))
     .returning()

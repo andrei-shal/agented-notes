@@ -12,7 +12,7 @@
  *   import { setupFts5, syncNoteFts, syncTaskFts } from "./fts5";
  */
 
-import { db } from "./db";
+import { getDb } from "./db";
 import { sql } from "drizzle-orm";
 import { notes, kanbanTasks } from "./schema";
 import { eq } from "drizzle-orm";
@@ -43,7 +43,7 @@ const CREATE_TASKS_FTS = sql`
  */
 function safeRun(stmt: ReturnType<typeof sql>): void {
   try {
-    db.run(stmt);
+    getDb().run(stmt);
   } catch (err) {
     // DrizzleError wraps SQLiteError in a `cause` property.
     // Swallow "no such table" — FTS5 tables may be absent in tests.
@@ -78,7 +78,7 @@ export function syncNoteFts(
   }
 
   // Upsert: find the note content and replace into FTS5
-  const row = db
+  const row = getDb()
     .select({ rowid: sql<number>`rowid`, content: notes.content })
     .from(notes)
     .where(eq(notes.id, noteId))
@@ -113,7 +113,7 @@ export function syncTaskFts(
     return;
   }
 
-  const row = db
+  const row = getDb()
     .select({
       rowid: sql<number>`rowid`,
       title: kanbanTasks.title,
@@ -138,7 +138,7 @@ const statements = [CREATE_NOTES_FTS, CREATE_TASKS_FTS];
 
 export function setupFts5(): void {
   for (const stmt of statements) {
-    db.run(stmt);
+    getDb().run(stmt);
   }
 }
 

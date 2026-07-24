@@ -28,8 +28,13 @@ export const useAuthStore = create<AuthState>()(
       // Only persist token and user — isAuthenticated is derived on rehydrate
       partialize: (state) => ({ token: state.token, user: state.user }),
       onRehydrateStorage: () => (state) => {
-        if (state) {
-          state.isAuthenticated = !!state.token;
+        if (state && state.token) {
+          try {
+            const payload = JSON.parse(atob(state.token.split(".")[1]!)) as { exp?: number };
+            state.isAuthenticated = payload.exp ? payload.exp * 1000 > Date.now() : true;
+          } catch {
+            state.isAuthenticated = false;
+          }
         }
       },
     },

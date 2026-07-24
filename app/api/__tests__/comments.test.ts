@@ -77,7 +77,7 @@ describe("Comments API", () => {
 
     // Insert a test note
     noteId = crypto.randomUUID();
-    dbModule.db
+    dbModule.getDb()
       .insert(schema.notes)
       .values({ id: noteId, title: "Test Note", content: "Body" })
       .run();

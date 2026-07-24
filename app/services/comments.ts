@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, inArray } from "drizzle-orm";
-import { db } from "../db/db";
+import { getDb } from "../db/db";
 import { calendarEvents, comments, kanbanTasks, notes } from "../db/schema";
 
 // ---------------------------------------------------------------------------
@@ -30,7 +30,7 @@ function assertEntityExists(entityType: string, entityId: string): void {
 
   switch (entityType) {
     case "note": {
-      const row = db
+      const row = getDb()
         .select({ id: notes.id })
         .from(notes)
         .where(eq(notes.id, entityId))
@@ -39,7 +39,7 @@ function assertEntityExists(entityType: string, entityId: string): void {
       break;
     }
     case "task": {
-      const row = db
+      const row = getDb()
         .select({ id: kanbanTasks.id })
         .from(kanbanTasks)
         .where(eq(kanbanTasks.id, entityId))
@@ -48,7 +48,7 @@ function assertEntityExists(entityType: string, entityId: string): void {
       break;
     }
     case "event": {
-      const row = db
+      const row = getDb()
         .select({ id: calendarEvents.id })
         .from(calendarEvents)
         .where(eq(calendarEvents.id, entityId))
@@ -82,7 +82,7 @@ export function createComment(
   const id = crypto.randomUUID();
   const timestamp = new Date().toISOString();
 
-  db.insert(comments)
+  getDb().insert(comments)
     .values({
       id,
       entityType,
@@ -94,7 +94,7 @@ export function createComment(
     })
     .run();
 
-  return db.select().from(comments).where(eq(comments.id, id)).get()!;
+  return getDb().select().from(comments).where(eq(comments.id, id)).get()!;
 }
 
 /** List all comments for an entity, ordered by creation time. */
@@ -102,7 +102,7 @@ export function getComments(
   entityType: EntityType,
   entityId: string,
 ): CommentRow[] {
-  return db
+  return getDb()
     .select()
     .from(comments)
     .where(
@@ -120,7 +120,7 @@ export function getComments(
  * Returns the updated comment, or `undefined` if the comment does not exist.
  */
 export function markProcessed(id: string): CommentRow | undefined {
-  const existing = db
+  const existing = getDb()
     .select()
     .from(comments)
     .where(eq(comments.id, id))
@@ -128,12 +128,12 @@ export function markProcessed(id: string): CommentRow | undefined {
 
   if (!existing) return undefined;
 
-  db.update(comments)
+  getDb().update(comments)
     .set({ status: "processed" })
     .where(eq(comments.id, id))
     .run();
 
-  return db.select().from(comments).where(eq(comments.id, id)).get()!;
+  return getDb().select().from(comments).where(eq(comments.id, id)).get()!;
 }
 
 /**
@@ -141,7 +141,7 @@ export function markProcessed(id: string): CommentRow | undefined {
  * Returns `true` if a comment was deleted, `false` if it did not exist.
  */
 export function deleteComment(id: string): boolean {
-  const existing = db
+  const existing = getDb()
     .select({ id: comments.id })
     .from(comments)
     .where(eq(comments.id, id))
@@ -149,7 +149,7 @@ export function deleteComment(id: string): boolean {
 
   if (!existing) return false;
 
-  db.delete(comments).where(eq(comments.id, id)).run();
+  getDb().delete(comments).where(eq(comments.id, id)).run();
   return true;
 }
 
@@ -163,7 +163,7 @@ export function deleteComment(id: string): boolean {
 export function getPendingComments(): PendingCommentWithEntity[] {
   const now = new Date().toISOString();
 
-  const pending = db
+  const pending = getDb()
     .select()
     .from(comments)
     .where(
@@ -196,7 +196,7 @@ export function getPendingComments(): PendingCommentWithEntity[] {
   const titleByEntityId = new Map<string, string>();
 
   if (noteIds.length > 0) {
-    const rows = db
+    const rows = getDb()
       .select({ id: notes.id, title: notes.title })
       .from(notes)
       .where(inArray(notes.id, noteIds))
@@ -207,7 +207,7 @@ export function getPendingComments(): PendingCommentWithEntity[] {
   }
 
   if (taskIds.length > 0) {
-    const rows = db
+    const rows = getDb()
       .select({ id: kanbanTasks.id, title: kanbanTasks.title })
       .from(kanbanTasks)
       .where(inArray(kanbanTasks.id, taskIds))
@@ -218,7 +218,7 @@ export function getPendingComments(): PendingCommentWithEntity[] {
   }
 
   if (eventIds.length > 0) {
-    const rows = db
+    const rows = getDb()
       .select({ id: calendarEvents.id, title: calendarEvents.title })
       .from(calendarEvents)
       .where(inArray(calendarEvents.id, eventIds))

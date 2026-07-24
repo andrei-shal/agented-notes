@@ -1,4 +1,4 @@
-import { db } from "../db/db";
+import { getDb } from "../db/db";
 import { notes, tags, notesToTags, comments } from "../db/schema";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { parseHashtags } from "../lib/hashtags";
@@ -50,7 +50,7 @@ export class NotFoundError extends Error {
 // ── Internal helpers ────────────────────────────────────────────────────────
 
 function loadTags(noteId: string): string[] {
-  return db
+  return getDb()
     .select({ name: tags.name })
     .from(notesToTags)
     .innerJoin(tags, eq(notesToTags.tagId, tags.id))
@@ -60,7 +60,7 @@ function loadTags(noteId: string): string[] {
 }
 
 function ensureTags(
-  tx: Pick<typeof db, "insert" | "select">,
+  tx: Pick<ReturnType<typeof getDb>, "insert" | "select">,
   noteId: string,
   content: string,
 ): void {
@@ -98,7 +98,7 @@ export function createNote(title: string, content: string): Note {
   const noteId = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  db.transaction((tx) => {
+  getDb().transaction((tx) => {
     tx.insert(notes)
       .values({ id: noteId, title, content, createdAt: now, updatedAt: now })
       .run();
@@ -108,17 +108,17 @@ export function createNote(title: string, content: string): Note {
   syncNoteFts(noteId, "upsert");
 
   return hydrateNote(
-    db.select().from(notes).where(eq(notes.id, noteId)).get()!,
+    getDb().select().from(notes).where(eq(notes.id, noteId)).get()!,
   );
 }
 
 export function getNote(id: string): NoteWithComments | null {
-  const row = db.select().from(notes).where(eq(notes.id, id)).get();
+  const row = getDb().select().from(notes).where(eq(notes.id, id)).get();
   if (!row) return null;
 
   const noteTags = loadTags(id);
 
-  const commentRows = db
+  const commentRows = getDb()
     .select({
       id: comments.id,
       content: comments.content,
@@ -150,9 +150,22 @@ export function listNotes(filters: NoteListFilters): NoteListResult {
   const offset = Math.max(filters.offset ?? 0, 0);
 
   let allIds: string[];
+  let total: number;
 
   if (filters.tag && filters.search) {
-    const rows = db.all<{ noteId: string }>(
+    const [countRow] = getDb().all<{ total: number }>(
+      sql`
+        SELECT COUNT(DISTINCT n.id) AS total
+        FROM notes n
+        INNER JOIN notes_to_tags ntt ON n.id = ntt.note_id
+        INNER JOIN tags t ON ntt.tag_id = t.id
+        INNER JOIN notes_fts fts ON n.rowid = fts.rowid
+        WHERE t.name = ${filters.tag}
+          AND fts.content MATCH ${filters.search}
+      `,
+    );
+    total = countRow?.total ?? 0;
+    const rows = getDb().all<{ noteId: string }>(
       sql`
         SELECT DISTINCT n.id AS noteId
         FROM notes n
@@ -162,11 +175,22 @@ export function listNotes(filters: NoteListFilters): NoteListResult {
         WHERE t.name = ${filters.tag}
           AND fts.content MATCH ${filters.search}
         ORDER BY n.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
       `,
     );
     allIds = rows.map((r) => r.noteId);
   } else if (filters.tag) {
-    const rows = db.all<{ noteId: string }>(
+    const [countRow] = getDb().all<{ total: number }>(
+      sql`
+        SELECT COUNT(DISTINCT n.id) AS total
+        FROM notes n
+        INNER JOIN notes_to_tags ntt ON n.id = ntt.note_id
+        INNER JOIN tags t ON ntt.tag_id = t.id
+        WHERE t.name = ${filters.tag}
+      `,
+    );
+    total = countRow?.total ?? 0;
+    const rows = getDb().all<{ noteId: string }>(
       sql`
         SELECT DISTINCT n.id AS noteId
         FROM notes n
@@ -174,42 +198,56 @@ export function listNotes(filters: NoteListFilters): NoteListResult {
         INNER JOIN tags t ON ntt.tag_id = t.id
         WHERE t.name = ${filters.tag}
         ORDER BY n.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
       `,
     );
     allIds = rows.map((r) => r.noteId);
   } else if (filters.search) {
-    const rows = db.all<{ noteId: string }>(
+    const [countRow] = getDb().all<{ total: number }>(
+      sql`
+        SELECT COUNT(DISTINCT n.id) AS total
+        FROM notes n
+        INNER JOIN notes_fts fts ON n.rowid = fts.rowid
+        WHERE fts.content MATCH ${filters.search}
+      `,
+    );
+    total = countRow?.total ?? 0;
+    const rows = getDb().all<{ noteId: string }>(
       sql`
         SELECT DISTINCT n.id AS noteId
         FROM notes n
         INNER JOIN notes_fts fts ON n.rowid = fts.rowid
         WHERE fts.content MATCH ${filters.search}
         ORDER BY n.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
       `,
     );
     allIds = rows.map((r) => r.noteId);
   } else {
-    const rows = db.all<{ id: string }>(
-      sql`SELECT id FROM notes ORDER BY created_at DESC`,
+    const [countRow] = getDb().all<{ total: number }>(
+      sql`SELECT COUNT(*) AS total FROM notes`,
+    );
+    total = countRow?.total ?? 0;
+    const rows = getDb().all<{ id: string }>(
+      sql`SELECT id FROM notes ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`,
     );
     allIds = rows.map((r) => r.id);
   }
 
-  const total = allIds.length;
-  const pageIds = allIds.slice(offset, offset + limit);
+  const pageIds = allIds;
 
   if (pageIds.length === 0) {
     return { notes: [], total };
   }
 
-  const noteRows = db
+  const noteRows = getDb()
     .select()
     .from(notes)
     .where(inArray(notes.id, pageIds))
     .all();
   const noteMap = new Map(noteRows.map((r) => [r.id, r]));
 
-  const tagLinks = db
+  const tagLinks = getDb()
     .select({ noteId: notesToTags.noteId, name: tags.name })
     .from(notesToTags)
     .innerJoin(tags, eq(notesToTags.tagId, tags.id))
@@ -242,7 +280,7 @@ export function updateNote(
   id: string,
   data: { title?: string; content?: string },
 ): Note {
-  const existing = db
+  const existing = getDb()
     .select()
     .from(notes)
     .where(eq(notes.id, id))
@@ -255,7 +293,7 @@ export function updateNote(
   const updatedTitle = data.title ?? existing.title;
   const updatedContent = data.content ?? existing.content;
 
-  db.transaction((tx) => {
+  getDb().transaction((tx) => {
     tx.update(notes)
       .set({ title: updatedTitle, content: updatedContent, updatedAt: now })
       .where(eq(notes.id, id))
@@ -270,12 +308,12 @@ export function updateNote(
   syncNoteFts(id, "upsert");
 
   return hydrateNote(
-    db.select().from(notes).where(eq(notes.id, id)).get()!,
+    getDb().select().from(notes).where(eq(notes.id, id)).get()!,
   );
 }
 
 export function deleteNote(id: string): void {
-  const existing = db
+  const existing = getDb()
     .select({ rowid: sql<number>`rowid` })
     .from(notes)
     .where(eq(notes.id, id))
@@ -285,7 +323,7 @@ export function deleteNote(id: string): void {
   }
   const rowid = existing.rowid;
 
-  db.transaction((tx) => {
+  getDb().transaction((tx) => {
     tx.delete(comments)
       .where(and(eq(comments.entityType, "note"), eq(comments.entityId, id)))
       .run();
