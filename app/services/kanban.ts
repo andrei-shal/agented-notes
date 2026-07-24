@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db/db";
 import { kanbanBoards, kanbanColumns, kanbanTasks } from "../db/schema";
+import { syncTaskFts } from "../db/fts5";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -455,6 +456,8 @@ export function createTask(input: CreateTaskInput) {
     })
     .run();
 
+  syncTaskFts(id, "upsert");
+
   return {
     id,
     columnId: input.columnId,
@@ -520,22 +523,25 @@ export function updateTask(id: string, input: UpdateTaskInput) {
     .where(eq(kanbanTasks.id, id))
     .run();
 
+  syncTaskFts(id, "upsert");
+
   return getTask(id)!;
 }
 
 export function deleteTask(id: string): boolean {
   const existing = db
-    .select()
+    .select({ rowid: sql<number>`rowid`, columnId: kanbanTasks.columnId, position: kanbanTasks.position })
     .from(kanbanTasks)
     .where(eq(kanbanTasks.id, id))
     .get();
 
   if (!existing) return false;
 
-  const columnId = existing.columnId;
-  const deletedPosition = existing.position;
+  const { rowid, columnId, position: deletedPosition } = existing;
 
   db.delete(kanbanTasks).where(eq(kanbanTasks.id, id)).run();
+
+  syncTaskFts(id, "delete", rowid);
 
   // Reorder: shift positions of remaining tasks in the same column
   db.update(kanbanTasks)

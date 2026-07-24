@@ -2,6 +2,7 @@ import { db } from "../db/db";
 import { notes, tags, notesToTags, comments } from "../db/schema";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { parseHashtags } from "../lib/hashtags";
+import { syncNoteFts } from "../db/fts5";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -103,6 +104,8 @@ export function createNote(title: string, content: string): Note {
       .run();
     ensureTags(tx, noteId, content);
   });
+
+  syncNoteFts(noteId, "upsert");
 
   return hydrateNote(
     db.select().from(notes).where(eq(notes.id, noteId)).get()!,
@@ -264,6 +267,8 @@ export function updateNote(
     ).run();
   });
 
+  syncNoteFts(id, "upsert");
+
   return hydrateNote(
     db.select().from(notes).where(eq(notes.id, id)).get()!,
   );
@@ -271,13 +276,14 @@ export function updateNote(
 
 export function deleteNote(id: string): void {
   const existing = db
-    .select()
+    .select({ rowid: sql<number>`rowid` })
     .from(notes)
     .where(eq(notes.id, id))
     .get();
   if (!existing) {
     throw new NotFoundError("Note", id);
   }
+  const rowid = existing.rowid;
 
   db.transaction((tx) => {
     tx.delete(comments)
@@ -289,4 +295,6 @@ export function deleteNote(id: string): void {
       sql`id NOT IN (SELECT tag_id FROM notes_to_tags)`,
     ).run();
   });
+
+  syncNoteFts(id, "delete", rowid);
 }
