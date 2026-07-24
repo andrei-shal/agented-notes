@@ -3,10 +3,14 @@
 # ---------------------------------------------------------------------------
 # Single-service setup. SQLite is file-based, so no separate database
 # container is needed. The data directory is bind-mounted for persistence.
+#
+#   docker compose up -d          # pull & run from GHCR (no local build)
+#   docker compose up --build -d  # build locally instead
 # ---------------------------------------------------------------------------
 
 services:
   agented-notes:
+    image: ghcr.io/andrei-shal/agented-notes:latest
     build: .
     ports:
       - "3000:3000"             # HTTP API
