@@ -17,7 +17,7 @@ comments, and Telegram bot integration. Exposes functionality via HTTP API and M
 | MCP            | Model Context Protocol — stdio + HTTP transports |
 | Auth           | JWT via `jose` |
 | Testing        | Bun test runner (`bun test`) |
-| Container      | Docker multi-stage (build + Alpine runtime) |
+| Container      | Docker multi-stage (build + Alpine runtime), GHCR via GitHub Actions |
 
 ## Project Structure
 
@@ -71,6 +71,9 @@ agented-notes/
 ├── frontend/            # React SPA (Vite + shadcn + Tailwind)
 │   └── src/             # Components, pages, stores
 ├── data/                # SQLite database (git-ignored)
+├── .github/
+│   └── workflows/
+│       └── docker.yml   # GHCR build & push (master / tags)
 └── Dockerfile           # Multi-stage Docker build
 ```
 
@@ -172,6 +175,8 @@ api/ (HTTP handler) → services/ (business logic) → db/ via Drizzle ORM
 
 10. **Commits** — Atomic commits with conventional commit messages (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`). One logical change per commit.
 
+11. **CI/CD** — Docker-связанные изменения (Dockerfile, entrypoint, workflow) требуют проверки `.github/workflows/docker.yml` на актуальность.
+
 ## Useful Commands
 
 ```bash
@@ -183,7 +188,9 @@ bun run --cwd app db:migrate   # Apply database migrations
 bun run --cwd app start       # Start API server (HTTP)
 bun run --cwd app start -- --mcp-stdio  # MCP stdio mode
 bun run --cwd app start -- --mcp        # MCP HTTP mode
-docker compose up --build -d  # Full Docker deployment
+docker compose up -d              # Pull & run from GHCR
+docker compose up --build -d      # Build locally instead
+docker pull ghcr.io/andrei-shal/agented-notes:latest  # Pull pre-built image from GHCR
 ```
 
 ## Configuration (`.env`)

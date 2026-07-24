@@ -45,7 +45,10 @@ bun run --cwd app start -- --mcp         # MCP HTTP mode on port 3100
 ### Quick Start
 
 ```bash
-# Build and start
+# Pull pre-built image from GHCR and start
+docker compose up -d
+
+# Or build locally (e.g. for development)
 docker compose up --build -d
 
 # View logs
@@ -56,6 +59,25 @@ docker compose down
 ```
 
 The API is available at `http://localhost:3000`.
+
+### CI/CD — GitHub Container Registry
+
+Образ автоматически собирается и пушится в `ghcr.io` через GitHub Actions:
+
+| Триггер | Теги образа |
+|---|---|
+| Пуш в `master` | `ghcr.io/andrei-shal/agented-notes:latest`, `:<sha>` |
+| Тег `v*` (например `v1.2.3`) | `:latest`, `:1.2.3`, `:1.2` |
+
+```bash
+# Стянуть готовый образ (не требует локальной сборки)
+docker pull ghcr.io/andrei-shal/agented-notes:latest
+
+# Запустить
+docker run -p 3000:3000 -v ./data:/app/app/data --env-file .env ghcr.io/andrei-shal/agented-notes:latest
+```
+
+Workflow — `.github/workflows/docker.yml`.
 
 ### Data Persistence
 
@@ -171,6 +193,9 @@ agented-notes/
 ├── frontend/            # React SPA (Vite + shadcn + Tailwind)
 │   └── src/             # Components, pages, stores
 ├── data/                # SQLite database (git-ignored)
+├── .github/
+│   └── workflows/
+│       └── docker.yml   # GHCR build & push (main / tags)
 ├── docker-compose.yml   # Single-service Docker deployment
 ├── Dockerfile           # Multi-stage build
 └── docker-entrypoint.sh # Runtime entrypoint (migrations + app start)
