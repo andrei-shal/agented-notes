@@ -31,8 +31,8 @@ export default function Login() {
     try {
       const response = await fetch("/api/auth/telegram", {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: initData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initData }),
       });
       if (!response.ok) {
         const text = await response.text();
