@@ -5,6 +5,7 @@ import {
   useSensor,
   useSensors,
   PointerSensor,
+  useDroppable,
   closestCorners,
   type DragStartEvent,
   type DragEndEvent,
@@ -121,10 +122,10 @@ function SortableTaskCard({
       >
         <CardContent className="flex flex-col gap-1.5">
           {/* Header with grip and title */}
-          <div className="flex items-start gap-1.5">
+          <div className="flex items-center gap-1.5">
             <button
               {...listeners}
-              className="mt-0.5 shrink-0 cursor-grab touch-none text-muted-foreground/40 hover:text-muted-foreground"
+              className="shrink-0 cursor-grab touch-none text-muted-foreground/40 hover:text-muted-foreground"
               aria-label="Drag task"
               onClick={(e) => e.stopPropagation()}
             >
@@ -222,6 +223,7 @@ function Column({
   onAddTask: () => void;
 }) {
   const color = columnColor(idx, column.color);
+  const { setNodeRef: setDroppableRef } = useDroppable({ id: column.id });
 
   return (
     <div className="flex w-72 shrink-0 flex-col rounded-xl bg-muted/40">
@@ -238,8 +240,8 @@ function Column({
         </span>
       </div>
 
-      {/* Task list */}
-      <div className="flex flex-col gap-2 p-2">
+      {/* Task list — droppable so empty columns accept dragged tasks */}
+      <div ref={setDroppableRef} className="flex min-h-8 flex-col gap-2 p-2">
         <SortableContext
           items={column.tasks.map((t) => t.id)}
           strategy={verticalListSortingStrategy}
@@ -742,7 +744,11 @@ export default function Kanban() {
     const activeContainer = findContainer(activeId);
     const overContainer = findContainer(overId);
     if (!activeContainer || !overContainer) return;
+    // Only handle cross-column moves; same-column sorting is handled by SortableContext
     if (activeContainer === overContainer) return;
+
+    // Determine target column and insert position, then move optimistically
+    const overItemId = columns.some((c) => c.id === overId) ? null : overId;
 
     setCurrentBoard((prev) => {
       if (!prev) return prev;
@@ -751,21 +757,24 @@ export default function Kanban() {
         tasks: c.tasks.map((t) => ({ ...t })),
       }));
 
-      const sourceCol = newColumns.find((c) => c.id === activeContainer)!;
-      const destCol = newColumns.find((c) => c.id === overContainer)!;
+      const srcCol = newColumns.find((c) => c.id === activeContainer);
+      const dstCol = newColumns.find((c) => c.id === overContainer);
+      if (!srcCol || !dstCol) return prev;
 
-      const taskIdx = sourceCol.tasks.findIndex((t) => t.id === activeId);
-      if (taskIdx === -1) return prev;
-      const moved = sourceCol.tasks.splice(taskIdx, 1)[0];
-      if (!moved) return prev;
-      moved.columnId = destCol.id;
+      const idx = srcCol.tasks.findIndex((t) => t.id === activeId);
+      if (idx === -1) return prev;
+      const moved = srcCol.tasks.splice(idx, 1)[0]!;
+      moved.columnId = dstCol.id;
 
-      // Insert at position of the over item (or append if over is the column)
-      const overIdx = destCol.tasks.findIndex((t) => t.id === overId);
-      if (overIdx >= 0) {
-        destCol.tasks.splice(overIdx, 0, moved);
+      if (overItemId) {
+        const insertAt = dstCol.tasks.findIndex((t) => t.id === overItemId);
+        if (insertAt >= 0) {
+          dstCol.tasks.splice(insertAt, 0, moved);
+        } else {
+          dstCol.tasks.push(moved);
+        }
       } else {
-        destCol.tasks.push(moved);
+        dstCol.tasks.push(moved);
       }
 
       return { ...prev, columns: newColumns };
@@ -779,33 +788,33 @@ export default function Kanban() {
 
     setActiveTask(null);
 
-    if (!over || active.id === over.id) return;
-
-    const activeContainer = findContainer(taskId);
-    if (!activeContainer) return;
+    if (!over || active.id === over.id) {
+      // Dropped outside — rollback
+      if (savedBoard) setCurrentBoard(savedBoard);
+      return;
+    }
 
     const overId = String(over.id);
+
+    // Determine current container (after optimistic moves in handleDragOver)
+    const activeContainer = findContainer(taskId);
     const overContainer = findContainer(overId);
-    if (!overContainer) return;
+    if (!activeContainer || !overContainer) return;
 
     const targetCol = columns.find((c) => c.id === overContainer);
     if (!targetCol) return;
 
-    // Determine target position
     const overIndex = targetCol.tasks.findIndex((t) => t.id === overId);
-    const targetPosition = overIndex >= 0 ? overIndex : targetCol.tasks.length - 1;
+    // If dropped on a task, insert at that task's position; if dropped on column, append
+    const targetPosition = overIndex >= 0 ? overIndex : targetCol.tasks.length;
 
-    // Optimistic state is already set from onDragOver. Call API to persist.
     kanbanApi
       .moveTask(taskId, {
         targetColumnId: overContainer,
         targetPosition,
       })
       .catch(() => {
-        // Rollback on failure
-        if (savedBoard) {
-          setCurrentBoard(savedBoard);
-        }
+        if (savedBoard) setCurrentBoard(savedBoard);
       });
   }
 
