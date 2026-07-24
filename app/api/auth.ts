@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { loadConfig } from "../config";
 import { getDb } from "../db/db";
 import { users, refreshTokens } from "../db/schema";
@@ -111,6 +111,11 @@ authRouter.post("/telegram", async (c) => {
 // ── POST /api/auth/refresh ───────────────────────────────────────────
 
 authRouter.post("/refresh", async (c) => {
+  // ── Cleanup expired tokens ───────────────────────────────────────────
+  getDb().delete(refreshTokens)
+    .where(sql`${refreshTokens.expiresAt} < ${new Date().toISOString()}`)
+    .run();
+
   const cookieHeader = c.req.header("Cookie");
   if (!cookieHeader) {
     return c.json({ error: "Missing refresh token" }, 401);

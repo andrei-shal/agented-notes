@@ -1,6 +1,6 @@
 import { getDb } from "../db/db";
 import { calendarEvents } from "../db/schema";
-import { eq, and, gte, lte, isNull, sql } from "drizzle-orm";
+import { eq, and, gte, lte, isNull, or, sql } from "drizzle-orm";
 import { RRule } from "rrule";
 
 // ---------------------------------------------------------------------------
@@ -119,10 +119,11 @@ export function listEvents(from: string, to: string): (Event | EventOccurrence)[
     .where(
       and(
         isNull(calendarEvents.rrule),
-        gte(calendarEvents.startDate, from),
-        // Events without an end_date (should not happen for non-recurring
-        // events created through this service) fall through the filter.
-        lte(calendarEvents.endDate, to),
+        lte(calendarEvents.startDate, to),
+        or(
+          isNull(calendarEvents.endDate),
+          gte(calendarEvents.endDate, from),
+        ),
       ),
     )
     .all();

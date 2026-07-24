@@ -19,13 +19,19 @@ export const users = sqliteTable("users", {
 });
 
 // ── 2. notes ────────────────────────────────────────────────────────
-export const notes = sqliteTable("notes", {
-  id: text("id").$defaultFn(uuid).primaryKey(),
-  title: text("title").notNull(),
-  content: text("content").notNull().default(""),
-  createdAt: text("created_at").$defaultFn(now),
-  updatedAt: text("updated_at").$defaultFn(now),
-});
+export const notes = sqliteTable(
+  "notes",
+  {
+    id: text("id").$defaultFn(uuid).primaryKey(),
+    title: text("title").notNull(),
+    content: text("content").notNull().default(""),
+    createdAt: text("created_at").$defaultFn(now),
+    updatedAt: text("updated_at").$defaultFn(now),
+  },
+  (table) => ({
+    createdAtIdx: index("idx_notes_created_at").on(table.createdAt),
+  }),
+);
 
 // ── 3. kanban_boards ────────────────────────────────────────────────
 export const kanbanBoards = sqliteTable("kanban_boards", {
@@ -46,31 +52,43 @@ export const kanbanColumns = sqliteTable("kanban_columns", {
 });
 
 // ── 5. kanban_tasks ─────────────────────────────────────────────────
-export const kanbanTasks = sqliteTable("kanban_tasks", {
-  id: text("id").$defaultFn(uuid).primaryKey(),
-  columnId: text("column_id").notNull().references(() => kanbanColumns.id),
-  title: text("title").notNull(),
-  description: text("description"),
-  position: integer("position").notNull().default(0),
-  dueDate: text("due_date"),
-  tags: text("tags").default("[]"),
-  createdAt: text("created_at").$defaultFn(now),
-  updatedAt: text("updated_at").$defaultFn(now),
-});
+export const kanbanTasks = sqliteTable(
+  "kanban_tasks",
+  {
+    id: text("id").$defaultFn(uuid).primaryKey(),
+    columnId: text("column_id").notNull().references(() => kanbanColumns.id),
+    title: text("title").notNull(),
+    description: text("description"),
+    position: integer("position").notNull().default(0),
+    dueDate: text("due_date"),
+    tags: text("tags").default("[]"),
+    createdAt: text("created_at").$defaultFn(now),
+    updatedAt: text("updated_at").$defaultFn(now),
+  },
+  (table) => ({
+    columnPosIdx: index("idx_kanban_tasks_column").on(table.columnId, table.position),
+  }),
+);
 
 // ── 6. calendar_events ──────────────────────────────────────────────
-export const calendarEvents = sqliteTable("calendar_events", {
-  id: text("id").$defaultFn(uuid).primaryKey(),
-  title: text("title").notNull(),
-  description: text("description"),
-  startDate: text("start_date").notNull(),
-  endDate: text("end_date"),
-  allDay: integer("all_day").default(0),
-  rrule: text("rrule"),
-  reminderMinutes: integer("reminder_minutes"),
-  color: text("color"),
-  createdAt: text("created_at").$defaultFn(now),
-});
+export const calendarEvents = sqliteTable(
+  "calendar_events",
+  {
+    id: text("id").$defaultFn(uuid).primaryKey(),
+    title: text("title").notNull(),
+    description: text("description"),
+    startDate: text("start_date").notNull(),
+    endDate: text("end_date"),
+    allDay: integer("all_day").default(0),
+    rrule: text("rrule"),
+    reminderMinutes: integer("reminder_minutes"),
+    color: text("color"),
+    createdAt: text("created_at").$defaultFn(now),
+  },
+  (table) => ({
+    datesIdx: index("idx_calendar_events_dates").on(table.startDate, table.endDate),
+  }),
+);
 
 // ── 7. comments ─────────────────────────────────────────────────────
 export const comments = sqliteTable("comments", {

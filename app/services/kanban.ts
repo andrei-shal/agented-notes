@@ -279,7 +279,6 @@ export function deleteBoard(id: string): boolean {
 
   if (!existing) return false;
 
-  // Cascade: delete all tasks in board's columns, then columns, then board
   const columns = getDb()
     .select()
     .from(kanbanColumns)
@@ -288,16 +287,27 @@ export function deleteBoard(id: string): boolean {
 
   const columnIds = columns.map((c) => c.id);
 
-  if (columnIds.length > 0) {
-    getDb().delete(kanbanTasks)
-      .where(inArray(kanbanTasks.columnId, columnIds))
-      .run();
-    getDb().delete(kanbanColumns)
-      .where(inArray(kanbanColumns.boardId, [id]))
-      .run();
-  }
+  // Pre-fetch tasks for FTS cleanup (tasks will be deleted in transaction)
+  const tasksToDelete = columnIds.length > 0
+    ? getDb()
+        .select({ id: kanbanTasks.id, rowid: sql<number>`rowid` })
+        .from(kanbanTasks)
+        .where(inArray(kanbanTasks.columnId, columnIds))
+        .all()
+    : [];
 
-  getDb().delete(kanbanBoards).where(eq(kanbanBoards.id, id)).run();
+  getDb().transaction((tx) => {
+    if (columnIds.length > 0) {
+      tx.delete(kanbanTasks).where(inArray(kanbanTasks.columnId, columnIds)).run();
+      tx.delete(kanbanColumns).where(eq(kanbanColumns.boardId, id)).run();
+    }
+    tx.delete(kanbanBoards).where(eq(kanbanBoards.id, id)).run();
+  });
+
+  // Clean up FTS for deleted tasks
+  for (const task of tasksToDelete) {
+    syncTaskFts(task.id, "delete", task.rowid);
+  }
 
   return true;
 }
@@ -404,17 +414,14 @@ export function deleteColumn(id: string): boolean {
   const boardId = existing.boardId;
   const deletedPosition = existing.position;
 
-  // Cascade: delete all tasks in this column
-  getDb().delete(kanbanTasks).where(eq(kanbanTasks.columnId, id)).run();
-
-  // Delete the column
-  getDb().delete(kanbanColumns).where(eq(kanbanColumns.id, id)).run();
-
-  // Reorder: shift positions of remaining columns after the deleted one
-  getDb().update(kanbanColumns)
-    .set({ position: sql`${kanbanColumns.position} - 1` })
-    .where(and(eq(kanbanColumns.boardId, boardId), sql`${kanbanColumns.position} > ${deletedPosition}`))
-    .run();
+  getDb().transaction((tx) => {
+    tx.delete(kanbanTasks).where(eq(kanbanTasks.columnId, id)).run();
+    tx.delete(kanbanColumns).where(eq(kanbanColumns.id, id)).run();
+    tx.update(kanbanColumns)
+      .set({ position: sql`${kanbanColumns.position} - 1` })
+      .where(and(eq(kanbanColumns.boardId, boardId), sql`${kanbanColumns.position} > ${deletedPosition}`))
+      .run();
+  });
 
   return true;
 }
@@ -539,15 +546,15 @@ export function deleteTask(id: string): boolean {
 
   const { rowid, columnId, position: deletedPosition } = existing;
 
-  getDb().delete(kanbanTasks).where(eq(kanbanTasks.id, id)).run();
+  getDb().transaction((tx) => {
+    tx.delete(kanbanTasks).where(eq(kanbanTasks.id, id)).run();
+    tx.update(kanbanTasks)
+      .set({ position: sql`${kanbanTasks.position} - 1` })
+      .where(and(eq(kanbanTasks.columnId, columnId), sql`${kanbanTasks.position} > ${deletedPosition}`))
+      .run();
+  });
 
   syncTaskFts(id, "delete", rowid);
-
-  // Reorder: shift positions of remaining tasks in the same column
-  getDb().update(kanbanTasks)
-    .set({ position: sql`${kanbanTasks.position} - 1` })
-    .where(and(eq(kanbanTasks.columnId, columnId), sql`${kanbanTasks.position} > ${deletedPosition}`))
-    .run();
 
   return true;
 }
@@ -592,51 +599,38 @@ export function moveTask(taskId: string, targetColumnId: string, targetPosition?
       return getTask(taskId)!;
     }
 
-    if (effectiveTarget > sourcePosition) {
-      // Shift items between source+1 and effectiveTarget down by 1
-      getDb().update(kanbanTasks)
-        .set({ position: sql`${kanbanTasks.position} - 1` })
-        .where(
-          and(
-            eq(kanbanTasks.columnId, sourceColumnId),
-            sql`${kanbanTasks.position} > ${sourcePosition}`,
-            sql`${kanbanTasks.position} <= ${effectiveTarget}`,
-          ),
-        )
-        .run();
-    } else {
-      // Shift items between effectiveTarget and source-1 up by 1
-      getDb().update(kanbanTasks)
-        .set({ position: sql`${kanbanTasks.position} + 1` })
-        .where(
-          and(
-            eq(kanbanTasks.columnId, sourceColumnId),
-            sql`${kanbanTasks.position} >= ${effectiveTarget}`,
-            sql`${kanbanTasks.position} < ${sourcePosition}`,
-          ),
-        )
-        .run();
-    }
+    getDb().transaction((tx) => {
+      if (effectiveTarget > sourcePosition) {
+        tx.update(kanbanTasks)
+          .set({ position: sql`${kanbanTasks.position} - 1` })
+          .where(
+            and(
+              eq(kanbanTasks.columnId, sourceColumnId),
+              sql`${kanbanTasks.position} > ${sourcePosition}`,
+              sql`${kanbanTasks.position} <= ${effectiveTarget}`,
+            ),
+          )
+          .run();
+      } else {
+        tx.update(kanbanTasks)
+          .set({ position: sql`${kanbanTasks.position} + 1` })
+          .where(
+            and(
+              eq(kanbanTasks.columnId, sourceColumnId),
+              sql`${kanbanTasks.position} >= ${effectiveTarget}`,
+              sql`${kanbanTasks.position} < ${sourcePosition}`,
+            ),
+          )
+          .run();
+      }
 
-    getDb().update(kanbanTasks)
-      .set({ position: effectiveTarget })
-      .where(eq(kanbanTasks.id, taskId))
-      .run();
+      tx.update(kanbanTasks)
+        .set({ position: effectiveTarget })
+        .where(eq(kanbanTasks.id, taskId))
+        .run();
+    });
   } else {
-    // Moving to a different column
-
-    // 1. Close the gap in the source column
-    getDb().update(kanbanTasks)
-      .set({ position: sql`${kanbanTasks.position} - 1` })
-      .where(
-        and(
-          eq(kanbanTasks.columnId, sourceColumnId),
-          sql`${kanbanTasks.position} > ${sourcePosition}`,
-        ),
-      )
-      .run();
-
-    // 2. Determine target position
+    // Moving to a different column — compute target first
     const maxPos = getDb()
       .select({ max: sql<number>`COALESCE(MAX(${kanbanTasks.position}), -1)` })
       .from(kanbanTasks)
@@ -647,25 +641,35 @@ export function moveTask(taskId: string, targetColumnId: string, targetPosition?
       ? Math.min(targetPosition, maxPos!.max + 1)
       : maxPos!.max + 1;
 
-    // 3. Make room in the target column
-    getDb().update(kanbanTasks)
-      .set({ position: sql`${kanbanTasks.position} + 1` })
-      .where(
-        and(
-          eq(kanbanTasks.columnId, targetColumnId),
-          sql`${kanbanTasks.position} >= ${effectiveTarget}`,
-        ),
-      )
-      .run();
+    getDb().transaction((tx) => {
+      tx.update(kanbanTasks)
+        .set({ position: sql`${kanbanTasks.position} - 1` })
+        .where(
+          and(
+            eq(kanbanTasks.columnId, sourceColumnId),
+            sql`${kanbanTasks.position} > ${sourcePosition}`,
+          ),
+        )
+        .run();
 
-    // 4. Move the task
-    getDb().update(kanbanTasks)
-      .set({
-        columnId: targetColumnId,
-        position: effectiveTarget,
-      })
-      .where(eq(kanbanTasks.id, taskId))
-      .run();
+      tx.update(kanbanTasks)
+        .set({ position: sql`${kanbanTasks.position} + 1` })
+        .where(
+          and(
+            eq(kanbanTasks.columnId, targetColumnId),
+            sql`${kanbanTasks.position} >= ${effectiveTarget}`,
+          ),
+        )
+        .run();
+
+      tx.update(kanbanTasks)
+        .set({
+          columnId: targetColumnId,
+          position: effectiveTarget,
+        })
+        .where(eq(kanbanTasks.id, taskId))
+        .run();
+    });
   }
 
   return getTask(taskId)!;
