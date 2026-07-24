@@ -47,8 +47,7 @@ RUN chmod +x /docker-entrypoint.sh
 EXPOSE 3000 3100
 
 # Create non-root user
-RUN addgroup --system bun && adduser --system --ingroup bun bun \
-    && chown -R bun:bun /app
+RUN addgroup --system bun 2>/dev/null; adduser --system --ingroup bun bun 2>/dev/null; chown -R bun:bun /app
 USER bun
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
