@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "active_work_id": "agented-notes",
+  "works": {
+    "agented-notes": {
+      "work_id": "agented-notes",
+      "active_plan": ".omo/plans/agented-notes.md",
+      "plan_name": "agented-notes",
+      "session_ids": ["codex:ses_active"],
+      "status": "completed"
+    }
+  }
+}

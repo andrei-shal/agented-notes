@@ -1,0 +1,17 @@
+{
+  "name": "agented-notes",
+  "private": true,
+  "workspaces": ["app", "frontend"],
+  "scripts": {
+    "dev": "concurrently \"bun run dev:app\" \"bun run dev:frontend\"",
+    "dev:app": "bun run --cwd app dev",
+    "dev:frontend": "bun run --cwd frontend dev",
+    "check": "bun run check:app && bun run check:frontend",
+    "check:app": "bun run --cwd app check",
+    "check:frontend": "bun run --cwd frontend check"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.7.0"
+  }
+}

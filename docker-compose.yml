@@ -1,0 +1,18 @@
+# ---------------------------------------------------------------------------
+# agented-notes — Docker Compose
+# ---------------------------------------------------------------------------
+# Single-service setup. SQLite is file-based, so no separate database
+# container is needed. The data directory is bind-mounted for persistence.
+# ---------------------------------------------------------------------------
+
+services:
+  agented-notes:
+    build: .
+    ports:
+      - "3000:3000"             # HTTP API
+      # - "3100:3100"           # MCP HTTP transport (optional, requires --mcp flag)
+    volumes:
+      # Persist the SQLite database on the host
+      - ./data:/app/app/data
+    env_file: .env
+    restart: unless-stopped
