@@ -40,12 +40,12 @@ async function request<T>(url: string, options: RequestOptions = {}): Promise<T>
     });
 
     if (refreshResponse.ok) {
-      const data: { token: string; user: { id: number; username: string } } =
+      const data: { accessToken: string } =
         await refreshResponse.json();
-      useAuthStore.getState().login(data.token, data.user);
+      useAuthStore.getState().login(data.accessToken, useAuthStore.getState().user!);
 
       // Retry original request with fresh token
-      headers["Authorization"] = `Bearer ${data.token}`;
+      headers["Authorization"] = `Bearer ${data.accessToken}`;
       response = await fetch(`/api${url}`, {
         method: options.method ?? "GET",
         headers,

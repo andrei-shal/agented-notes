@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./store/authStore";
 import Layout from "./components/Layout";
@@ -17,6 +18,20 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 }
 
 export function App() {
+  const initializing = useAuthStore((s) => s.initializing);
+
+  useEffect(() => {
+    useAuthStore.getState().initialize();
+  }, []);
+
+  if (initializing) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <p className="text-sm text-muted-foreground">Restoring session...</p>
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
       <Routes>

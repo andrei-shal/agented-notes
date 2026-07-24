@@ -33,6 +33,13 @@ export function rateLimit(): MiddlewareHandler {
       ?? c.req.header("x-real-ip")
       ?? "unknown";
 
+    if (ip === "unknown") {
+      console.warn(
+        "[rate-limit] No x-forwarded-for or x-real-ip header — rate limiting is ineffective. " +
+        "Configure your reverse proxy to forward the real client IP.",
+      );
+    }
+
     const now = Date.now();
 
     // Periodic full sweep — every ~20 requests

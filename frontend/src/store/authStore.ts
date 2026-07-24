@@ -10,8 +10,10 @@ export interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  initializing: boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
+  initialize: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -20,23 +22,35 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      login: (token, user) => set({ token, user, isAuthenticated: true }),
+      initializing: true,
+      login: (token, user) => set({ token, user, isAuthenticated: true, initializing: false }),
       logout: () => set({ token: null, user: null, isAuthenticated: false }),
+      initialize: async () => {
+        try {
+          const res = await fetch("/api/auth/refresh", {
+            method: "POST",
+            credentials: "include",
+          });
+          if (res.ok) {
+            const data = await res.json() as { accessToken: string };
+            const currentUser = useAuthStore.getState().user;
+            set({ token: data.accessToken, isAuthenticated: true, initializing: false });
+            if (!currentUser) {
+              // If no user persisted, try to get it from telegram login
+              set({ initializing: false });
+            }
+          } else {
+            set({ token: null, isAuthenticated: false, initializing: false });
+          }
+        } catch {
+          set({ token: null, isAuthenticated: false, initializing: false });
+        }
+      },
     }),
     {
       name: "agented-notes-auth",
-      // Only persist token and user — isAuthenticated is derived on rehydrate
-      partialize: (state) => ({ token: state.token, user: state.user }),
-      onRehydrateStorage: () => (state) => {
-        if (state && state.token) {
-          try {
-            const payload = JSON.parse(atob(state.token.split(".")[1]!)) as { exp?: number };
-            state.isAuthenticated = payload.exp ? payload.exp * 1000 > Date.now() : true;
-          } catch {
-            state.isAuthenticated = false;
-          }
-        }
-      },
+      // Persist only user info — token is memory-only (XSS-safe)
+      partialize: (state) => ({ user: state.user }),
     },
   ),
 );
