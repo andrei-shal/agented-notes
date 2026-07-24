@@ -192,6 +192,17 @@ bun run --cwd app test
 bun run check
 ```
 
+## Architecture
+
+### Single-user
+
+agented-notes is a **personal tool** designed for a single user. All notes, boards,
+events, and comments are shared across all authenticated sessions — there is no
+data isolation by user ID.
+
+If multi-user support is needed in the future, each data table would require a
+`user_id` foreign key and filtered queries in every service.
+
 ## Development Notes
 
 The `.omo/` directory contains agent session artifacts, plans, and evidence

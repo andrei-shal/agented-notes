@@ -518,12 +518,12 @@ export function updateTask(id: string, input: UpdateTaskInput) {
 
   const now = new Date().toISOString();
 
-  const updates: Record<string, unknown> = { updatedAt: now };
+  const updates: Partial<typeof kanbanTasks.$inferInsert> & { updatedAt: string } = { updatedAt: now };
 
-  if (input.title !== undefined) updates["title"] = input.title;
-  if (input.description !== undefined) updates["description"] = input.description;
-  if (input.dueDate !== undefined) updates["dueDate"] = input.dueDate;
-  if (input.tags !== undefined) updates["tags"] = JSON.stringify(input.tags);
+  if (input.title !== undefined) updates.title = input.title;
+  if (input.description !== undefined) updates.description = input.description;
+  if (input.dueDate !== undefined) updates.dueDate = input.dueDate;
+  if (input.tags !== undefined) updates.tags = JSON.stringify(input.tags);
 
   getDb().update(kanbanTasks)
     .set(updates)
