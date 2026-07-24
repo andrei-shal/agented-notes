@@ -32,8 +32,7 @@ export function NoteCard({ note, onTagClick, onClick }: NoteCardProps) {
 
   return (
     <Card
-      size="sm"
-      className="cursor-pointer transition-colors hover:bg-muted/50"
+      className="cursor-pointer break-words transition-colors hover:bg-muted/50"
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -55,7 +54,7 @@ export function NoteCard({ note, onTagClick, onClick }: NoteCardProps) {
         )}
       </CardHeader>
       {note.tags.length > 0 && (
-        <CardContent className="flex flex-wrap gap-1">
+        <CardContent className="flex flex-wrap gap-1.5">
           {note.tags.map((tag) => (
             <Badge
               key={tag}
