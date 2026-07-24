@@ -27,11 +27,11 @@ FROM oven/bun:alpine
 
 WORKDIR /app
 
-# Install runtime dependencies (including drizzle-kit for migrations)
+# Install runtime dependencies only (no devDependencies — better-sqlite3 is excluded this way)
 COPY package.json bun.lock ./
 COPY app/package.json ./app/
 COPY frontend/package.json ./frontend/
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --production
 
 # Copy built artifacts from build stage
 COPY --from=build /build/app ./app/
