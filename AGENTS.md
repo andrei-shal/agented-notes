@@ -207,3 +207,8 @@ docker compose up --build -d  # Full Docker deployment
   Tags are created on first use (upsert pattern in `notes.ts`).
 - **Kanban position as integer**: Column and task ordering uses sequential integers;
   reordering updates all positions in the affected set.
+- **Single-user design**: The application is designed for personal use by one
+  person. There is no row-level isolation by userId — all entities are shared.
+  Telegram auth acts as an access gate, not a multi-tenancy mechanism.
+  To convert to multi-user: add `user_id FK` to notes, kanban_boards,
+  calendar_events, and filter all service queries by it.

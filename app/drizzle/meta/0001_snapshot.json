@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6baa9f90-e68e-43fc-bd45-c1d28c887a4e",
+  "id": "d4541d70-da32-4de5-8718-5dfbf1d81fc9",
   "prevId": "1b20411d-9497-4f79-9e36-5670c76ec691",
   "tables": {
     "calendar_events": {
@@ -139,16 +139,7 @@
           "autoincrement": false
         }
       },
-      "indexes": {
-        "comments_entity_idx": {
-          "name": "comments_entity_idx",
-          "columns": [
-            "entity_type",
-            "entity_id"
-          ],
-          "isUnique": false
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -492,7 +483,22 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_refresh_tokens_hash": {
+          "name": "idx_refresh_tokens_hash",
+          "columns": [
+            "token_hash"
+          ],
+          "isUnique": false
+        },
+        "idx_refresh_tokens_expires": {
+          "name": "idx_refresh_tokens_expires",
+          "columns": [
+            "expires_at"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "refresh_tokens_user_id_users_id_fk": {
           "name": "refresh_tokens_user_id_users_id_fk",

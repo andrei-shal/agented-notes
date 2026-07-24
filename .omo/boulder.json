@@ -2,10 +2,10 @@
   "schema_version": 2,
   "active_work_id": null,
   "works": {
-    "fix-review-issues": {
-      "work_id": "fix-review-issues",
-      "active_plan": ".omo/plans/fix-review-issues.md",
-      "plan_name": "fix-review-issues",
+    "fix-round-2": {
+      "work_id": "fix-round-2",
+      "active_plan": ".omo/plans/fix-round-2.md",
+      "plan_name": "fix-round-2",
       "session_ids": [],
       "status": "completed",
       "worktree_path": null

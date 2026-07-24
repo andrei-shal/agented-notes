@@ -121,6 +121,12 @@ export function parseArgs(argv: string[]): RawConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Cache for `loadConfig()` when called without arguments (production path)
+// ---------------------------------------------------------------------------
+
+let _cachedConfig: Config | null = null;
+
+// ---------------------------------------------------------------------------
 // Public API — loadConfig
 // ---------------------------------------------------------------------------
 
@@ -138,6 +144,12 @@ export function parseArgs(argv: string[]): RawConfig {
  * @throws {Error} On validation failure with descriptive messages.
  */
 export function loadConfig(argv?: string[]): Config {
+  // Cache when called without argv (production path) so that parallel test
+  // files racing on process.env cannot cause inconsistent reads.
+  if (argv === undefined && _cachedConfig) {
+    return _cachedConfig;
+  }
+
   const args = argv ?? process.argv.slice(2);
   const envConfig = parseEnv();
   const cliConfig = parseArgs(args);
@@ -164,6 +176,10 @@ export function loadConfig(argv?: string[]): Config {
     throw new Error(
       "MCP_API_KEY is required when MCP HTTP mode is enabled (use --mcp flag)",
     );
+  }
+
+  if (argv === undefined) {
+    _cachedConfig = result.data;
   }
 
   return result.data;

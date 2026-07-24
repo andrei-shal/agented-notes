@@ -183,24 +183,24 @@ export function listEvents(from: string, to: string): (Event | EventOccurrence)[
  * Returns the updated event, or `undefined` if the event does not exist.
  */
 export function updateEvent(id: string, data: UpdateEventData): Event | undefined {
-  const values: Record<string, unknown> = {};
+  const updates: Partial<typeof calendarEvents.$inferInsert> = {};
 
-  if (data.title !== undefined) values["title"] = data.title;
-  if (data.description !== undefined) values["description"] = data.description;
-  if (data.startDate !== undefined) values["startDate"] = data.startDate;
-  if (data.endDate !== undefined) values["endDate"] = data.endDate;
-  if (data.allDay !== undefined) values["allDay"] = data.allDay ? 1 : 0;
-  if (data.rrule !== undefined) values["rrule"] = data.rrule;
-  if (data.reminderMinutes !== undefined) values["reminderMinutes"] = data.reminderMinutes;
-  if (data.color !== undefined) values["color"] = data.color;
+  if (data.title !== undefined) updates.title = data.title;
+  if (data.description !== undefined) updates.description = data.description;
+  if (data.startDate !== undefined) updates.startDate = data.startDate;
+  if (data.endDate !== undefined) updates.endDate = data.endDate;
+  if (data.allDay !== undefined) updates.allDay = data.allDay ? 1 : 0;
+  if (data.rrule !== undefined) updates.rrule = data.rrule;
+  if (data.reminderMinutes !== undefined) updates.reminderMinutes = data.reminderMinutes;
+  if (data.color !== undefined) updates.color = data.color;
 
-  if (Object.keys(values).length === 0) {
+  if (Object.keys(updates).length === 0) {
     return getEvent(id);
   }
 
   const result = getDb()
     .update(calendarEvents)
-    .set(values)
+    .set(updates)
     .where(eq(calendarEvents.id, id))
     .returning()
     .get();

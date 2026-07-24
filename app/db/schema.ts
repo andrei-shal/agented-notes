@@ -1,4 +1,10 @@
-import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, primaryKey, index } from "drizzle-orm/sqlite-core";
+
+// ── АРХИТЕКТУРНОЕ ПРИМЕЧАНИЕ ──────────────────────────────────────
+// Это single-user приложение. Таблицы не содержат user_id намеренно.
+// Telegram-аутентификация защищает доступ к API, но не изолирует данные.
+// Для multi-user потребуется добавить user_id во все основные таблицы.
+// ──────────────────────────────────────────────────────────────────
 
 // ── Helper: UUID v4 via crypto ──────────────────────────────────────
 const uuid = () => crypto.randomUUID();
@@ -86,13 +92,20 @@ export const tags = sqliteTable("tags", {
 });
 
 // ── 9. refresh_tokens ───────────────────────────────────────────────
-export const refreshTokens = sqliteTable("refresh_tokens", {
-  id: text("id").$defaultFn(uuid).primaryKey(),
-  tokenHash: text("token_hash").notNull(),
-  userId: text("user_id").references(() => users.id),
-  expiresAt: text("expires_at").notNull(),
-  createdAt: text("created_at").$defaultFn(now),
-});
+export const refreshTokens = sqliteTable(
+  "refresh_tokens",
+  {
+    id: text("id").$defaultFn(uuid).primaryKey(),
+    tokenHash: text("token_hash").notNull(),
+    userId: text("user_id").references(() => users.id),
+    expiresAt: text("expires_at").notNull(),
+    createdAt: text("created_at").$defaultFn(now),
+  },
+  (table) => ({
+    hashIdx: index("idx_refresh_tokens_hash").on(table.tokenHash),
+    expiresAtIdx: index("idx_refresh_tokens_expires").on(table.expiresAt),
+  }),
+);
 
 // ── 10. notes_to_tags (junction) ────────────────────────────────────
 export const notesToTags = sqliteTable(

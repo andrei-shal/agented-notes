@@ -9,6 +9,7 @@ const store = new Map<string, RateLimitEntry>();
 
 const WINDOW_MS = 60_000; // 1 minute
 const MAX_REQUESTS = 10;
+let requestCount = 0;
 
 /**
  * Middleware that limits POST requests to `/api/auth/*` to 10 requests per
@@ -34,10 +35,11 @@ export function rateLimit(): MiddlewareHandler {
 
     const now = Date.now();
 
-    // Lazy cleanup of expired entries
-    if (store.size > 1000) {
-      for (const [key, entry] of store) {
-        if (now > entry.resetTime) {
+    // Periodic full sweep — every ~20 requests
+    requestCount++;
+    if (requestCount % 20 === 0) {
+      for (const [key, e] of store) {
+        if (now > e.resetTime) {
           store.delete(key);
         }
       }

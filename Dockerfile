@@ -46,7 +46,13 @@ RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 3000 3100
 
-VOLUME /app/app/data
+# Create non-root user
+RUN addgroup --system bun && adduser --system --ingroup bun bun \
+    && chown -R bun:bun /app
+USER bun
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:3000/health || exit 1
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["bun", "run", "app/index.ts"]

@@ -44,6 +44,8 @@ function clearRefreshCookie(c: Context): void {
   );
 }
 
+const config = loadConfig();
+
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
@@ -53,8 +55,6 @@ export const authRouter = new Hono();
 // ── POST /api/auth/telegram ──────────────────────────────────────────
 
 authRouter.post("/telegram", async (c) => {
-  const config = loadConfig();
-
   const body = await c.req.json<{ initData?: string }>().catch(() => ({ initData: undefined }));
   const initData = body.initData;
 

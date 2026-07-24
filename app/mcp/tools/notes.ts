@@ -7,8 +7,7 @@ import {
   deleteNote,
   NotFoundError,
 } from "../../services/notes";
-import { getDb } from "../../db/db";
-import { tags } from "../../db/schema";
+import { getTags } from "../../services/analytics";
 
 // ── notes_list ───────────────────────────────────────────────────────────────
 
@@ -224,7 +223,7 @@ const tagsListTool: McpTool = {
   },
   handler: async () => {
     try {
-      const rows = getDb().select().from(tags).all();
+      const rows = getTags();
       return { content: [{ type: "text", text: JSON.stringify(rows) }] };
     } catch (error) {
       return {

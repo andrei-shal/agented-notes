@@ -316,11 +316,10 @@ describe("MCP notes & tags tools", () => {
     const rows = JSON.parse(res.content[0]!.text);
     expect(Array.isArray(rows)).toBe(true);
 
-    // Every row should be a tag object with at least id and name
+    // Every row should be a tag object with name and count
     for (const row of rows) {
-      expect(row).toHaveProperty("id");
       expect(row).toHaveProperty("name");
-      expect(row).toHaveProperty("createdAt");
+      expect(row).toHaveProperty("count");
     }
   });
 
